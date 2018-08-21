@@ -14,19 +14,14 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
-import org.apache.commons.math3.filter.DefaultMeasurementModel;
-import org.apache.commons.math3.filter.DefaultProcessModel;
-import org.apache.commons.math3.filter.KalmanFilter;
-import org.apache.commons.math3.filter.MeasurementModel;
-import org.apache.commons.math3.filter.ProcessModel;
-import org.apache.commons.math3.fitting.PolynomialCurveFitter;
-import org.apache.commons.math3.fitting.WeightedObservedPoints;
 import org.apache.commons.math3.linear.Array2DRowRealMatrix;
 import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
 import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.commons.math3.random.RandomGenerator;
+import org.ejml.data.DMatrixRMaj;
+import org.ejml.simple.SimpleMatrix;
 
 
 @SuppressWarnings("serial")
@@ -102,84 +97,164 @@ public class LinearFit extends JPanel{
 
 	}
 	//===========================================================================================================================
+	/**
+	 * A Kalman filter implemented using SimpleMatrix.  The code tends to be easier to
+	 * read and write, but the performance is degraded due to excessive creation/destruction of
+	 * memory and the use of more generic algorithms.  This also demonstrates how code can be
+	 * seamlessly implemented using both SimpleMatrix and DMatrixRMaj.  This allows code
+	 * to be quickly prototyped or to be written either by novices or experts.
+	 *
+	 * @author Peter Abeles
+	 */
+	public class KalmanFilterSimple{
+
+	    // kinematics description
+	    private SimpleMatrix F,Q,H;
+
+	    // sytem state estimate
+	    private SimpleMatrix x,P;
+
+	    public void configure(DMatrixRMaj F, DMatrixRMaj Q, DMatrixRMaj H) {
+	        this.F = new SimpleMatrix(F);
+	        this.Q = new SimpleMatrix(Q);
+	        this.H = new SimpleMatrix(H);
+	    }
+
+	    public void setState(DMatrixRMaj x, DMatrixRMaj P) {
+	        this.x = new SimpleMatrix(x);
+	        this.P = new SimpleMatrix(P);
+	    }
+
+	    public void predict() {
+	        // x = F x
+	        x = F.mult(x);
+
+	        // P = F P F' + Q
+	        P = F.mult(P).mult(F.transpose()).plus(Q);
+	    }
+
+	    public void update(DMatrixRMaj _z, DMatrixRMaj _R) {
+	        // a fast way to make the matrices usable by SimpleMatrix
+	        SimpleMatrix z = SimpleMatrix.wrap(_z);
+	        SimpleMatrix R = SimpleMatrix.wrap(_R);
+
+	        // y = z - H x
+	        SimpleMatrix y = z.minus(H.mult(x));
+
+	        // S = H P H' + R
+	        SimpleMatrix S = H.mult(P).mult(H.transpose()).plus(R);
+
+	        // K = PH'S^(-1)
+	        SimpleMatrix K = P.mult(H.transpose().mult(S.invert()));
+
+	        // x = x + Ky
+	        x = x.plus(K.mult(y));
+
+	        // P = (I-kH)P = P - KHP
+	        P = P.minus(K.mult(H).mult(P));
+	    }
+
+	    public DMatrixRMaj getState() {
+	        return x.getMatrix();
+	    }
+
+	    public DMatrixRMaj getCovariance() {
+	        return P.getMatrix();
+	    }
+	}
 	// discrete time interval
+	
 	double dt = 1d;
 	// position measurement noise (meter)
 	double measurementNoise = 2d;
 	// acceleration noise (meter/sec^2)
 	double accelNoise = 0.0d;
-	private KalmanFilter filterX;
-	private KalmanFilter filterY;
+	private KalmanFilterSimple filterX;
+	private KalmanFilterSimple filterY;
 	RealVector u;
-	RealVector x1;
-	RealVector y1;
-	RealMatrix A;
+	DMatrixRMaj x1;
+	DMatrixRMaj y1;
+	DMatrixRMaj Ax;
 	RealMatrix B;
-	RealMatrix H;
+	DMatrixRMaj Hx;
+	DMatrixRMaj Ry;
+	DMatrixRMaj Rx;
+	private DMatrixRMaj P0y;
+	private DMatrixRMaj P0x;
+	private DMatrixRMaj Ay;
+	private DMatrixRMaj Hy;
+	DMatrixRMaj Qy;
+	DMatrixRMaj Qx;
 	class KalmanX {
+
 		public KalmanX(double x, double t) {
 			// A = [ 1 dt ]
 			//	     [ 0  1 ]
-			A = new Array2DRowRealMatrix(new double[][] { { 1, dt }, { 0, 1 } });
+			Ax = new DMatrixRMaj(new double[][] { { 1, dt }, { 0, 1 } });
 			// B = [ dt^2/2 ]
 			//	     [ dt     ]
 			B = new Array2DRowRealMatrix(new double[][] { { Math.pow(dt, 2d) / 2d }, { dt } });
 			// H = [ 1 0 ]
-			H = new Array2DRowRealMatrix(new double[][] { { 1d, 0d } });
+			Hx = new DMatrixRMaj(new double[][] { { 1d, 0d } });
 			// x = [ 0 0 ]
-			x1 = new ArrayRealVector(new double[] { x, t });
+			x1 = new DMatrixRMaj(new double[][] {{ x},{t  }});
 
-			RealMatrix tmp = new Array2DRowRealMatrix(new double[][] {
+			SimpleMatrix tmp = new SimpleMatrix(new double[][] {
 				{ Math.pow(dt, 4d) / 4d, Math.pow(dt, 3d) / 2d },
 				{ Math.pow(dt, 3d) / 2d, Math.pow(dt, 2d) } });
 			// Q = [ dt^4/4 dt^3/2 ]
 			//	     [ dt^3/2 dt^2   ]
-			RealMatrix Q = tmp.scalarMultiply(Math.pow(accelNoise, 2));
+			Qx = tmp.scale(Math.pow(accelNoise, 2)).getDDRM();
 			// P0 = [ 1 1 ]
 			//	      [ 1 1 ]
-			RealMatrix P0 = new Array2DRowRealMatrix(new double[][] { { 1, 1 }, { 1, 1 } });
+			P0x = new DMatrixRMaj(new double[][] { { 1, 1 }, { 1, 1 } });
 			// R = [ measurementNoise^2 ]
-			RealMatrix R = new Array2DRowRealMatrix(new double[] { Math.pow(measurementNoise, 2) });
+			Rx = new SimpleMatrix(new double[][] {{ Math.pow(measurementNoise, 2) }}).getDDRM();
 
 			// constant control input, increase velocity by 0.1 m/s per cycle
 			u = new ArrayRealVector(new double[] { 0.0d });
 
-			ProcessModel pm = new DefaultProcessModel(A, B, Q, x1, P0);
-			MeasurementModel mm = new DefaultMeasurementModel(H, R);
-			filterX = new KalmanFilter(pm, mm);
+			filterX = new KalmanFilterSimple();
+		    filterX.configure(Ax, Qx, Hx); 
+
+		    filterX.setState(x1, P0x);
+
 		}
 	}	
 	class KalmanY {
+
 		public KalmanY(double y, double t) {
 			// A = [ 1 dt ]
 			//	     [ 0  1 ]
-			A = new Array2DRowRealMatrix(new double[][] { { 1, dt }, { 0, 1 } });
+			Ay = new DMatrixRMaj(new double[][] { { 1, dt }, { 0, 1 } });
 			// B = [ dt^2/2 ]
 			//	     [ dt     ]
 			B = new Array2DRowRealMatrix(new double[][] { { Math.pow(dt, 2d) / 2d }, { dt } });
 			// H = [ 1 0 ]
-			H = new Array2DRowRealMatrix(new double[][] { { 1d, 0d } });
-			// x = [ 0 0 ]
-			y1 = new ArrayRealVector(new double[] { y, t });
+			Hy = new DMatrixRMaj(new double[][] { { 1d, 0d } });
+			// y = [ 0 0 ]
+			y1 = new DMatrixRMaj(new double[][] {{ y },{t }});
 
-			RealMatrix tmp = new Array2DRowRealMatrix(new double[][] {
+			SimpleMatrix tmp = new SimpleMatrix(new double[][] {
 				{ Math.pow(dt, 4d) / 4d, Math.pow(dt, 3d) / 2d },
 				{ Math.pow(dt, 3d) / 2d, Math.pow(dt, 2d) } });
 			// Q = [ dt^4/4 dt^3/2 ]
 			//	     [ dt^3/2 dt^2   ]
-			RealMatrix Q = tmp.scalarMultiply(Math.pow(accelNoise, 2));
+			Qy = tmp.scale(Math.pow(accelNoise, 2)).getDDRM();
 			// P0 = [ 1 1 ]
 			//	      [ 1 1 ]
-			RealMatrix P0 = new Array2DRowRealMatrix(new double[][] { { 1, 1 }, { 1, 1 } });
+			P0y = new DMatrixRMaj(new double[][] { { 1, 1 }, { 1, 1 } });
 			// R = [ measurementNoise^2 ]
-			RealMatrix R = new Array2DRowRealMatrix(new double[] { Math.pow(measurementNoise, 2) });
+			Ry = new SimpleMatrix(new double[][] {{ Math.pow(measurementNoise, 2) }}).getDDRM();
 
 			// constant control input, increase velocity by 0.1 m/s per cycle
 			u = new ArrayRealVector(new double[] { 0.0d });
 
-			ProcessModel pm = new DefaultProcessModel(A, B, Q, y1, P0);
-			MeasurementModel mm = new DefaultMeasurementModel(H, R);
-			filterY = new KalmanFilter(pm, mm);
+			filterY = new KalmanFilterSimple();
+		    filterY.configure(Ay, Qy, Hy); 
+
+		    filterY.setState(y1, P0y);
+
 		}
 	}
 
@@ -195,22 +270,41 @@ public class LinearFit extends JPanel{
 		Point3D point = new Point3D();
 		point.x = x; point.y = y; point.t = t;
 		points.add(point);
-		KalmanX Kx = new KalmanX(points.get(fred).x,points.get(fred).t);KalmanY Ky = new KalmanY(points.get(fred).y,points.get(fred).t);
+		SimpleMatrix tmp = new SimpleMatrix(new double[][] {
+			{ Math.pow(dt, 4d) / 4d, Math.pow(dt, 3d) / 2d },
+			{ Math.pow(dt, 3d) / 2d, Math.pow(dt, 2d) } });
+		Ax = new DMatrixRMaj(new double[][] { { 1, dt }, { 0, 1 } });
+		Qx = tmp.scale(Math.pow(accelNoise, 2)).getDDRM();
+		Hx = new DMatrixRMaj(new double[][] { { 1d, 0d } });
+	    filterY.configure(Ax, Qx, Hx); 
+		P0x = new DMatrixRMaj(new double[][] { { 1, 1 }, { 1, 1 } });
+		//x1 = new DMatrixRMaj(new double[][] {{ points.get(fred).x }, { points.get(fred).t }});
+		x1 = new DMatrixRMaj(new double[][] {{ points.get(fred).x }, { 0 }});//?
+	    filterX.setState(x1, P0x);
+		Ay = new DMatrixRMaj(new double[][] { { 1, dt }, { 0, 1 } });
+		Qy = tmp.scale(Math.pow(accelNoise, 2)).getDDRM();
+		Hy = new DMatrixRMaj(new double[][] { { 1d, 0d } });
+	    filterY.configure(Ay, Qy, Hy); 
+		P0y = new DMatrixRMaj(new double[][] { { 1, 1 }, { 1, 1 } });
+		//y1 = new DMatrixRMaj(new double[][] {{ points.get(fred).y }, { points.get(fred).t  }});
+		y1 = new DMatrixRMaj(new double[][] {{ points.get(fred).y }, { 0  }});//?
+	    filterY.setState(y1, P0y);
+		
 		// Collect data.
 		for (int i = 0; i < 5 && i < points.size(); i++) {
 			fred = points.size() - 5+i;
 			fred = (fred > 0)? fred: 0;
-			filterX.predict(u);
+			filterX.predict();
 
 			// x = A * y + B * u + pNoise
 			//x1 = A.operate((new ArrayRealVector(new double[] {points.get(i).x,points.get(i).t}))).add(B.operate(u)).add(pNoise);
-			x1 = new ArrayRealVector(new double[] {points.get(fred).x,points.get(fred).t});
+			x1 = new SimpleMatrix(new double[][] {{points.get(fred).x}}).getDDRM();
 
 			// z = H * y + m_noise
-			RealVector z = H.operate(x1).add(mNoise);
+			DMatrixRMaj z = x1;
 
 	
-			filterX.correct(z);
+			filterX.update(z, Rx);
 
 		}
 
@@ -219,25 +313,24 @@ public class LinearFit extends JPanel{
 		for (int i = 0; i < 5 && i < points.size(); i++) {
 			fred = points.size() - 5+i;
 			fred = (fred > 0)? fred: 0;
-			filterY.predict(u);
+			filterY.predict();
 
 			// y = A * y + B * u + pNoise
 			//y1 = A.operate((new ArrayRealVector(new double[] {points.get(i).y,points.get(i).t}))).add(B.operate(u)).add(pNoise);
-			y1 = new ArrayRealVector(new double[] {points.get(fred).y,points.get(fred).t});
+			y1 = new SimpleMatrix(new double[][] {{points.get(fred).y}}).getDDRM();
 
 			// z = H * y + m_noise
-			RealVector z = H.operate(y1).add(mNoise);
+			DMatrixRMaj z = y1;
 
-			filterY.correct(z);
+	
+			filterX.update(z, Ry);
 
 		}
 
 
 		Point3D ppoint = new Point3D();
-		double positionX = filterX.getStateEstimation()[0];
-		double velocityX = filterX.getStateEstimation()[1];
-		double positionY = filterY.getStateEstimation()[0];
-		double velocityY = filterY.getStateEstimation()[1];
+		double positionX = filterX.getState().get(0, 0);
+		double positionY = filterY.getState().get(0, 0);
 		ppoint.x = positionX; ppoint.y = positionY; ppoint.t = t;		
 		ppoints.add(ppoint);
 
@@ -329,6 +422,8 @@ public class LinearFit extends JPanel{
 			public void run() {
 				diamond = new LinearFit();
 				diamond.new PaintDemo();
+				diamond.new KalmanX(0.0,0.0);
+				diamond.new KalmanY(0.0,0.0);
 				try {
 					diamond.doASquare();
 				} catch (InterruptedException e) {
