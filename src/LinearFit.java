@@ -166,7 +166,7 @@ public class LinearFit extends JPanel{
 	
 	double dt = 1d;
 	// position measurement noise (meter)
-	double measurementNoise = 2d;
+	double measurementNoise = 1.0d;
 	// acceleration noise (meter/sec^2)
 	double accelNoise = 0.0d;
 	private KalmanFilterSimple filterX;
@@ -185,9 +185,11 @@ public class LinearFit extends JPanel{
 	private DMatrixRMaj Hy;
 	DMatrixRMaj Qy;
 	DMatrixRMaj Qx;
+	private double vx;
+	private double vy;
 	class KalmanX {
 
-		public KalmanX(double x, double t) {
+		public KalmanX(double x, double vx) {
 			// A = [ 1 dt ]
 			//	     [ 0  1 ]
 			Ax = new DMatrixRMaj(new double[][] { { 1, dt }, { 0, 1 } });
@@ -197,7 +199,7 @@ public class LinearFit extends JPanel{
 			// H = [ 1 0 ]
 			Hx = new DMatrixRMaj(new double[][] { { 1d, 0d } });
 			// x = [ 0 0 ]
-			x1 = new DMatrixRMaj(new double[][] {{ x},{t  }});
+			x1 = new DMatrixRMaj(new double[][] {{ x},{vx  }});
 
 			SimpleMatrix tmp = new SimpleMatrix(new double[][] {
 				{ Math.pow(dt, 4d) / 4d, Math.pow(dt, 3d) / 2d },
@@ -223,7 +225,7 @@ public class LinearFit extends JPanel{
 	}	
 	class KalmanY {
 
-		public KalmanY(double y, double t) {
+		public KalmanY(double y, double vy) {
 			// A = [ 1 dt ]
 			//	     [ 0  1 ]
 			Ay = new DMatrixRMaj(new double[][] { { 1, dt }, { 0, 1 } });
@@ -233,7 +235,7 @@ public class LinearFit extends JPanel{
 			// H = [ 1 0 ]
 			Hy = new DMatrixRMaj(new double[][] { { 1d, 0d } });
 			// y = [ 0 0 ]
-			y1 = new DMatrixRMaj(new double[][] {{ y },{t }});
+			y1 = new DMatrixRMaj(new double[][] {{ y },{vy }});
 
 			SimpleMatrix tmp = new SimpleMatrix(new double[][] {
 				{ Math.pow(dt, 4d) / 4d, Math.pow(dt, 3d) / 2d },
@@ -270,24 +272,27 @@ public class LinearFit extends JPanel{
 		Point3D point = new Point3D();
 		point.x = x; point.y = y; point.t = t;
 		points.add(point);
+		vx = vy = 0.0;
 		SimpleMatrix tmp = new SimpleMatrix(new double[][] {
 			{ Math.pow(dt, 4d) / 4d, Math.pow(dt, 3d) / 2d },
 			{ Math.pow(dt, 3d) / 2d, Math.pow(dt, 2d) } });
 		Ax = new DMatrixRMaj(new double[][] { { 1, dt }, { 0, 1 } });
 		Qx = tmp.scale(Math.pow(accelNoise, 2)).getDDRM();
 		Hx = new DMatrixRMaj(new double[][] { { 1d, 0d } });
-	    filterY.configure(Ax, Qx, Hx); 
+		Rx = new SimpleMatrix(new double[][] {{ Math.pow(measurementNoise, 2) }}).getDDRM();
+		filterX.configure(Ax, Qx, Hx); 
 		P0x = new DMatrixRMaj(new double[][] { { 1, 1 }, { 1, 1 } });
 		//x1 = new DMatrixRMaj(new double[][] {{ points.get(fred).x }, { points.get(fred).t }});
-		x1 = new DMatrixRMaj(new double[][] {{ points.get(fred).x }, { 0 }});//?
+		x1 = new DMatrixRMaj(new double[][] {{ points.get(fred).x }, { vx }});//?
 	    filterX.setState(x1, P0x);
 		Ay = new DMatrixRMaj(new double[][] { { 1, dt }, { 0, 1 } });
 		Qy = tmp.scale(Math.pow(accelNoise, 2)).getDDRM();
 		Hy = new DMatrixRMaj(new double[][] { { 1d, 0d } });
-	    filterY.configure(Ay, Qy, Hy); 
+		Ry = new SimpleMatrix(new double[][] {{ Math.pow(measurementNoise, 2) }}).getDDRM();
+		filterY.configure(Ay, Qy, Hy); 
 		P0y = new DMatrixRMaj(new double[][] { { 1, 1 }, { 1, 1 } });
 		//y1 = new DMatrixRMaj(new double[][] {{ points.get(fred).y }, { points.get(fred).t  }});
-		y1 = new DMatrixRMaj(new double[][] {{ points.get(fred).y }, { 0  }});//?
+		y1 = new DMatrixRMaj(new double[][] {{ points.get(fred).y }, { vy  }});//?
 	    filterY.setState(y1, P0y);
 		
 		// Collect data.
@@ -330,7 +335,10 @@ public class LinearFit extends JPanel{
 
 		Point3D ppoint = new Point3D();
 		double positionX = filterX.getState().get(0, 0);
+		double velocityX = filterX.getState().get(1, 0);
 		double positionY = filterY.getState().get(0, 0);
+		double velocityY = filterY.getState().get(1, 0);
+		System.out.println("velocityX:"+velocityX);
 		ppoint.x = positionX; ppoint.y = positionY; ppoint.t = t;		
 		ppoints.add(ppoint);
 
