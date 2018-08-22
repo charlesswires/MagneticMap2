@@ -32,12 +32,12 @@ public class LinearFit extends JPanel{
 	}
 	static RandomGenerator rand = new JDKRandomGenerator();
 
-	private static final double NOISE_VALUE = 5.0;
-	List<Point3D> points = new ArrayList<Point3D>();
-	List<Point3D> ppoints = new ArrayList<Point3D>();
-	List<Point3D> vppoints= new ArrayList<Point3D>();
+	private static double NOISE_VALUE = 5.0;
+	List<Point3D> points;
+	List<Point3D> ppoints;
+	List<Point3D> vppoints;
 	protected static boolean render = true;
-	JLabel minxl= new JLabel("Min x");;
+	JLabel minxl= new JLabel("Noise");;
 	JTextField minx= new JTextField(20);;
 	JLabel maxxl = new JLabel("Scale");;
 	JTextField maxx =new JTextField("3",20);
@@ -71,6 +71,9 @@ public class LinearFit extends JPanel{
 	void doASquare() throws InterruptedException {
 		double tempx,tempy;
 		double tempt;
+		points = new ArrayList<Point3D>();
+		ppoints = new ArrayList<Point3D>();
+		vppoints= new ArrayList<Point3D>();
 
 		tempx = 0.0; tempy= 0.0;
 		tempt = 0.0;
@@ -395,6 +398,13 @@ public class LinearFit extends JPanel{
 				@Override
 				public void actionPerformed(ActionEvent e) {
 					render = true;
+					NOISE_VALUE = Double.parseDouble(minx.getText());
+					try {
+						charlie.doASquare();
+					} catch (InterruptedException ex) {
+						ex.printStackTrace();
+					}
+
 					charlie.repaint();				
 				}
 
@@ -405,6 +415,8 @@ public class LinearFit extends JPanel{
 			JPanel temp = new JPanel();
 			temp.add(maxxl);		
 			temp.add(maxx);
+			temp.add(minxl);		
+			temp.add(minx);
 			temp.add(doRender);
 			//			canvas.setVisible(true);
 			jfrm.add(temp, BorderLayout.NORTH);
