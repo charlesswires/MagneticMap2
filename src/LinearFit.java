@@ -38,7 +38,7 @@ public class LinearFit extends JPanel{
 	List<Point3D> vppoints;
 	protected static boolean render = true;
 	JLabel minxl= new JLabel("Noise");;
-	JTextField minx= new JTextField(20);;
+	JTextField minx= new JTextField("5",20);;
 	JLabel maxxl = new JLabel("Scale");;
 	JTextField maxx =new JTextField("3",20);
 	JButton doRender= new JButton("Render");
