@@ -30,6 +30,8 @@ public class LinearFit extends JPanel{
 	class Point3D{
 		public double x,y,t;
 	}
+	static RandomGenerator rand = new JDKRandomGenerator();
+
 	private static final double NOISE_VALUE = 5.0;
 	List<Point3D> points = new ArrayList<Point3D>();
 	List<Point3D> ppoints = new ArrayList<Point3D>();
@@ -168,7 +170,7 @@ public class LinearFit extends JPanel{
 	
 	double dt = 1d;
 	// position measurement noise (meter)
-	double measurementNoise = 1.0d;
+	double measurementNoise = NOISE_VALUE;
 	// acceleration noise (meter/sec^2)
 	double accelNoise = 0.0d;
 	private KalmanFilterSimple filterX;
@@ -262,10 +264,6 @@ public class LinearFit extends JPanel{
 		}
 	}
 
-	RandomGenerator rand = new JDKRandomGenerator();
-
-	RealVector tmpPNoise = new ArrayRealVector(new double[] { Math.pow(dt, 2d) / 2d, dt });
-	RealVector mNoise = new ArrayRealVector(1);
 
 
 	private void predictAndDraw(double x, double y, double t) {
@@ -382,7 +380,7 @@ public class LinearFit extends JPanel{
 		return sumOfTerms;
 	}
 	double addNoise(double noiseless) {
-		return NOISE_VALUE * (Math.random()-0.5)+noiseless;
+		return NOISE_VALUE * (LinearFit.rand.nextGaussian())+noiseless;
 	}
 	class PaintDemo{
 
