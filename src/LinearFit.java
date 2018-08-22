@@ -43,8 +43,8 @@ public class LinearFit extends JPanel{
 	JTextField maxx =new JTextField("3",20);
 	JButton doRender= new JButton("Render");
 	JPanel canvas = new JPanel();
-	JFrame jfrm = new JFrame("Diamond");
-	static LinearFit diamond;
+	JFrame jfrm = new JFrame("Kalman Filter");
+	static LinearFit charlie;
 	LinearFit(){	
 		setBorder(BorderFactory.createLineBorder(Color.BLACK, 4));
 	}
@@ -395,7 +395,7 @@ public class LinearFit extends JPanel{
 				@Override
 				public void actionPerformed(ActionEvent e) {
 					render = true;
-					diamond.repaint();				
+					charlie.repaint();				
 				}
 
 			});
@@ -408,7 +408,7 @@ public class LinearFit extends JPanel{
 			temp.add(doRender);
 			//			canvas.setVisible(true);
 			jfrm.add(temp, BorderLayout.NORTH);
-			jfrm.add(diamond, BorderLayout.CENTER);
+			jfrm.add(charlie, BorderLayout.CENTER);
 
 			//jfrm.add(diamond);
 
@@ -419,12 +419,12 @@ public class LinearFit extends JPanel{
 	public static void main(String args[]) {
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
-				diamond = new LinearFit();
-				diamond.new PaintDemo();
-				diamond.new KalmanX(0.0,0.0);
-				diamond.new KalmanY(0.0,0.0);
+				charlie = new LinearFit();
+				charlie.new PaintDemo();
+				charlie.new KalmanX(0.0,0.0);
+				charlie.new KalmanY(0.0,0.0);
 				try {
-					diamond.doASquare();
+					charlie.doASquare();
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
