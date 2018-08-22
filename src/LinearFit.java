@@ -1,5 +1,6 @@
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Container;
 import java.awt.Graphics;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -31,6 +32,7 @@ public class LinearFit extends JPanel{
 	}
 	List<Point3D> points = new ArrayList<Point3D>();
 	List<Point3D> ppoints = new ArrayList<Point3D>();
+	List<Point3D> vppoints= new ArrayList<Point3D>();
 	protected static boolean render = true;
 	JLabel minxl= new JLabel("Min x");;
 	JTextField minx= new JTextField(20);;
@@ -65,33 +67,33 @@ public class LinearFit extends JPanel{
 	}
 	private static final double NOISE_VALUE = 3.0;
 	void doASquare() throws InterruptedException {
-		double x,y;
-		double t;
+		double tempx,tempy;
+		double tempt;
 
-		x = 0.0; y= 0.0;
-		t = 0.0;
+		tempx = 0.0; tempy= 0.0;
+		tempt = 0.0;
 		for (int i=0; i < 20;i++) {
-			x -= 2.0;
-			t += 1.0;
-			predictAndDraw(addNoise(x),addNoise(y),t);
-
-		}		
-		for (int i=0; i < 20;i++) {
-			y -= 2.0;
-			t += 1.0;
-			predictAndDraw(addNoise(x),addNoise(y),t);
+			tempx -= 2.0;
+			tempt += 1.0;
+			predictAndDraw(addNoise(tempx),addNoise(tempy),tempt);
 
 		}		
 		for (int i=0; i < 20;i++) {
-			x += 2.0;
-			t += 1.0;
-			predictAndDraw(addNoise(x),addNoise(y),t);
+			tempy -= 2.0;
+			tempt += 1.0;
+			predictAndDraw(addNoise(tempx),addNoise(tempy),tempt);
+
+		}		
+		for (int i=0; i < 20;i++) {
+			tempx += 2.0;
+			tempt += 1.0;
+			predictAndDraw(addNoise(tempx),addNoise(tempy),tempt);
 
 		}
 		for (int i=0; i < 20;i++) {
-			y += 2.0;
-			t += 1.0;
-			predictAndDraw(addNoise(x),addNoise(y),t);
+			tempy += 2.0;
+			tempt += 1.0;
+			predictAndDraw(addNoise(tempx),addNoise(tempy),tempt);
 
 		}		
 
@@ -127,10 +129,10 @@ public class LinearFit extends JPanel{
 
 	    public void predict() {
 	        // x = F x
-	        x = F.mult(x);
+	    	this.x = F.mult(this.x);
 
 	        // P = F P F' + Q
-	        P = F.mult(P).mult(F.transpose()).plus(Q);
+	    	this.P = F.mult(this.P).mult(F.transpose()).plus(Q);
 	    }
 
 	    public void update(DMatrixRMaj _z, DMatrixRMaj _R) {
@@ -139,7 +141,7 @@ public class LinearFit extends JPanel{
 	        SimpleMatrix R = SimpleMatrix.wrap(_R);
 
 	        // y = z - H x
-	        SimpleMatrix y = z.minus(H.mult(x));
+	        SimpleMatrix y = z.minus(H.mult(this.x));
 
 	        // S = H P H' + R
 	        SimpleMatrix S = H.mult(P).mult(H.transpose()).plus(R);
@@ -148,18 +150,18 @@ public class LinearFit extends JPanel{
 	        SimpleMatrix K = P.mult(H.transpose().mult(S.invert()));
 
 	        // x = x + Ky
-	        x = x.plus(K.mult(y));
+	        this.x = this.x.plus(K.mult(y));
 
 	        // P = (I-kH)P = P - KHP
-	        P = P.minus(K.mult(H).mult(P));
+	        this.P = this.P.minus(K.mult(H).mult(this.P));
 	    }
 
 	    public DMatrixRMaj getState() {
-	        return x.getMatrix();
+	        return this.x.getMatrix();
 	    }
 
 	    public DMatrixRMaj getCovariance() {
-	        return P.getMatrix();
+	        return this.P.getMatrix();
 	    }
 	}
 	// discrete time interval
@@ -189,7 +191,7 @@ public class LinearFit extends JPanel{
 	private double vy;
 	class KalmanX {
 
-		public KalmanX(double x, double vx) {
+		public KalmanX(double paramx, double paramvx) {
 			// A = [ 1 dt ]
 			//	     [ 0  1 ]
 			Ax = new DMatrixRMaj(new double[][] { { 1, dt }, { 0, 1 } });
@@ -199,7 +201,7 @@ public class LinearFit extends JPanel{
 			// H = [ 1 0 ]
 			Hx = new DMatrixRMaj(new double[][] { { 1d, 0d } });
 			// x = [ 0 0 ]
-			x1 = new DMatrixRMaj(new double[][] {{ x},{vx  }});
+			x1 = new DMatrixRMaj(new double[][] {{ paramx},{paramvx  }});
 
 			SimpleMatrix tmp = new SimpleMatrix(new double[][] {
 				{ Math.pow(dt, 4d) / 4d, Math.pow(dt, 3d) / 2d },
@@ -225,7 +227,7 @@ public class LinearFit extends JPanel{
 	}	
 	class KalmanY {
 
-		public KalmanY(double y, double vy) {
+		public KalmanY(double paramy, double paramvy) {
 			// A = [ 1 dt ]
 			//	     [ 0  1 ]
 			Ay = new DMatrixRMaj(new double[][] { { 1, dt }, { 0, 1 } });
@@ -235,7 +237,7 @@ public class LinearFit extends JPanel{
 			// H = [ 1 0 ]
 			Hy = new DMatrixRMaj(new double[][] { { 1d, 0d } });
 			// y = [ 0 0 ]
-			y1 = new DMatrixRMaj(new double[][] {{ y },{vy }});
+			y1 = new DMatrixRMaj(new double[][] {{paramy },{paramvy }});
 
 			SimpleMatrix tmp = new SimpleMatrix(new double[][] {
 				{ Math.pow(dt, 4d) / 4d, Math.pow(dt, 3d) / 2d },
@@ -267,7 +269,7 @@ public class LinearFit extends JPanel{
 
 
 	private void predictAndDraw(double x, double y, double t) {
-		int fred = points.size() - 5;
+		int fred = points.size() - 6;
 		fred = (fred > 0)? fred: 0;
 		Point3D point = new Point3D();
 		point.x = x; point.y = y; point.t = t;
@@ -283,7 +285,7 @@ public class LinearFit extends JPanel{
 		filterX.configure(Ax, Qx, Hx); 
 		P0x = new DMatrixRMaj(new double[][] { { 1, 1 }, { 1, 1 } });
 		//x1 = new DMatrixRMaj(new double[][] {{ points.get(fred).x }, { points.get(fred).t }});
-		x1 = new DMatrixRMaj(new double[][] {{ points.get(fred).x }, { vx }});//?
+		x1 = new DMatrixRMaj(new double[][] {{ points.get(fred).x }, { 0d }});//?
 	    filterX.setState(x1, P0x);
 		Ay = new DMatrixRMaj(new double[][] { { 1, dt }, { 0, 1 } });
 		Qy = tmp.scale(Math.pow(accelNoise, 2)).getDDRM();
@@ -292,55 +294,46 @@ public class LinearFit extends JPanel{
 		filterY.configure(Ay, Qy, Hy); 
 		P0y = new DMatrixRMaj(new double[][] { { 1, 1 }, { 1, 1 } });
 		//y1 = new DMatrixRMaj(new double[][] {{ points.get(fred).y }, { points.get(fred).t  }});
-		y1 = new DMatrixRMaj(new double[][] {{ points.get(fred).y }, { vy  }});//?
+		y1 = new DMatrixRMaj(new double[][] {{ points.get(fred).y }, { 0d  }});//?
 	    filterY.setState(y1, P0y);
 		
 		// Collect data.
-		for (int i = 0; i < 5 && i < points.size(); i++) {
-			fred = points.size() - 5+i;
+		for (int i = 0; i < 6 && i < points.size(); i++) {
+			fred = points.size() - 6+i;
 			fred = (fred > 0)? fred: 0;
 			filterX.predict();
+			filterY.predict();
 
 			// x = A * y + B * u + pNoise
 			//x1 = A.operate((new ArrayRealVector(new double[] {points.get(i).x,points.get(i).t}))).add(B.operate(u)).add(pNoise);
 			x1 = new SimpleMatrix(new double[][] {{points.get(fred).x}}).getDDRM();
-
-			// z = H * y + m_noise
-			DMatrixRMaj z = x1;
-
-	
-			filterX.update(z, Rx);
-
-		}
-
-
-		// Collect data.
-		for (int i = 0; i < 5 && i < points.size(); i++) {
-			fred = points.size() - 5+i;
-			fred = (fred > 0)? fred: 0;
-			filterY.predict();
 
 			// y = A * y + B * u + pNoise
 			//y1 = A.operate((new ArrayRealVector(new double[] {points.get(i).y,points.get(i).t}))).add(B.operate(u)).add(pNoise);
 			y1 = new SimpleMatrix(new double[][] {{points.get(fred).y}}).getDDRM();
 
 			// z = H * y + m_noise
-			DMatrixRMaj z = y1;
 
 	
-			filterX.update(z, Ry);
+			filterX.update(x1, Rx);
+			// z = H * y + m_noise
+
+	
+			filterY.update(y1, Ry);
 
 		}
-
 
 		Point3D ppoint = new Point3D();
 		double positionX = filterX.getState().get(0, 0);
 		double velocityX = filterX.getState().get(1, 0);
 		double positionY = filterY.getState().get(0, 0);
 		double velocityY = filterY.getState().get(1, 0);
-		System.out.println("velocityX:"+velocityX);
+		System.out.println("velocityX:"+velocityX+" velocityY:"+velocityY);
 		ppoint.x = positionX; ppoint.y = positionY; ppoint.t = t;		
 		ppoints.add(ppoint);
+		Point3D vppoint = new Point3D();
+		vppoint.x = velocityX; vppoint.y = velocityY; vppoint.t = t;		
+		vppoints.add(vppoint);
 
 	}	
 
@@ -350,8 +343,8 @@ public class LinearFit extends JPanel{
 //		points.add(point);
 //		// Collect data.
 //		final WeightedObservedPoints obs = new WeightedObservedPoints();
-//		for (int i = 0; i < 5 && i < points.size(); i++) {
-//			int fred = points.size() - 5 +i;
+//		for (int i = 0; i < 6 && i < points.size(); i++) {
+//			int fred = points.size() - 6 +i;
 //			fred = (fred > 0)? fred: 0;
 //			obs.add(points.get(fred).t, points.get(fred).x);
 //
@@ -364,8 +357,8 @@ public class LinearFit extends JPanel{
 //		final double[] coeff = fitter.fit(obs.toList());
 //		// Collect data.
 //		final WeightedObservedPoints obs2 = new WeightedObservedPoints();
-//		for (int i = 0; i < 5 && i < points.size(); i++) {
-//			int fred = points.size() - 5+i;
+//		for (int i = 0; i < 6 && i < points.size(); i++) {
+//			int fred = points.size() - 6+i;
 //			fred = (fred > 0)? fred: 0;
 //			obs2.add(points.get(fred).t, points.get(fred).y);
 //
