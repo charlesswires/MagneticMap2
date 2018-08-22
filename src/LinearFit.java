@@ -30,13 +30,14 @@ public class LinearFit extends JPanel{
 	class Point3D{
 		public double x,y,t;
 	}
+	private static final double NOISE_VALUE = 5.0;
 	List<Point3D> points = new ArrayList<Point3D>();
 	List<Point3D> ppoints = new ArrayList<Point3D>();
 	List<Point3D> vppoints= new ArrayList<Point3D>();
 	protected static boolean render = true;
 	JLabel minxl= new JLabel("Min x");;
 	JTextField minx= new JTextField(20);;
-	JLabel maxxl = new JLabel("Max x");;
+	JLabel maxxl = new JLabel("Scale");;
 	JTextField maxx =new JTextField("3",20);
 	JButton doRender= new JButton("Render");
 	JPanel canvas = new JPanel();
@@ -65,7 +66,6 @@ public class LinearFit extends JPanel{
 
 
 	}
-	private static final double NOISE_VALUE = 3.0;
 	void doASquare() throws InterruptedException {
 		double tempx,tempy;
 		double tempt;
@@ -428,7 +428,6 @@ public class LinearFit extends JPanel{
 				try {
 					diamond.doASquare();
 				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 
