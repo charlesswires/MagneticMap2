@@ -32,13 +32,13 @@ public class LinearFit extends JPanel{
 	}
 	static RandomGenerator rand = new JDKRandomGenerator();
 
-	private static double NOISE_VALUE = 5.0;
+	private static double NOISE_VALUE = 2.0;
 	List<Point3D> points;
 	List<Point3D> ppoints;
 	List<Point3D> vppoints;
 	protected static boolean render = true;
 	JLabel minxl= new JLabel("Noise");;
-	JTextField minx= new JTextField("5",20);;
+	JTextField minx= new JTextField("2",20);;
 	JLabel maxxl = new JLabel("Scale");;
 	JTextField maxx =new JTextField("3",20);
 	JButton doRender= new JButton("Render");
@@ -65,7 +65,10 @@ public class LinearFit extends JPanel{
 			g.drawLine((int)Math.round(ppoint.x*max_x-max_x/2.0)+width/2, (int)Math.round(ppoint.y*max_x)+height/2, (int)Math.round(ppoint.x*max_x+max_x/2.0)+width/2,(int)Math.round(ppoint.y*max_x)+height/2);
 			g.drawLine((int)Math.round(ppoint.x*max_x)+width/2, (int)Math.round(ppoint.y*max_x-max_x/2.0)+height/2, (int)Math.round(ppoint.x*max_x)+width/2,(int)Math.round(ppoint.y*max_x+max_x/2.0)+height/2);
 		}
-
+		g.setColor(Color.GREEN);
+		for (int i =0;i<points.size();i++) {
+			g.drawLine((int)Math.round(points.get(i).x*max_x)+width/2, (int)Math.round(points.get(i).y*max_x)+height/2, (int)Math.round(ppoints.get(i).x*max_x)+width/2,(int)Math.round(ppoints.get(i).y*max_x)+height/2);
+		}
 
 	}
 	void doASquare() throws InterruptedException {
