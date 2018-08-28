@@ -83,8 +83,6 @@ public class MagneticMap extends JPanel{
 				g.drawRect(x*max_x, y*max_x, max_x, max_x);
 			}
 		}
-		
-
 	}
 
 
