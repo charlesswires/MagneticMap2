@@ -52,7 +52,7 @@ public class MagneticMap extends JPanel{
 	JTextField maxx =new JTextField("60",20);
 	JButton doRender= new JButton("Render");
 	JPanel canvas = new JPanel();
-	JFrame jfrm = new JFrame("Magnetic Map");
+	JFrame jfrm = new JFrame("Magnetic Map ");
 	static MagneticMap charlie;
 	MagneticMap(){	
 		setBorder(BorderFactory.createLineBorder(Color.BLACK, 4));
