@@ -165,8 +165,8 @@ public class MagneticMap extends JPanel{
 				g.setColor(new Color((1.0f/rangex) * (magmapx[y][x]-minx), 
 						(1.0f/rangey) * (magmapy[y][x]-miny),(1.0f/rangez) * (magmapz[y][x]-minz)));
 				g.fillRect(x*max_x+width/2, y*max_x, max_x, max_x);	
-				g.setColor(Color.WHITE);
-				//g.drawString(""+magmapz[y][x]+"uT z", x*max_x+width/2, y*max_x+max_x);
+				g.setColor(Color.BLACK);
+				g.drawString(""+Math.round(magmapx[y][x])+","+Math.round(magmapy[y][x])+","+Math.round(magmapz[y][x]), x*max_x+width/2, y*max_x+max_x);
 				g.drawRect(x*max_x+width/2, y*max_x, max_x, max_x);
 			}
 		}
